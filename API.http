@@ -1,0 +1,10 @@
+### GET request to example server
+GET http://localhost:8082/tasks
+
+###
+PATCH http://localhost:8082/tasks/1/status?status=DONE
+###
+GET http://localhost:8082/tasks/search?keyword="Report"
+
+###
+GET http://localhost:8082/admin/users

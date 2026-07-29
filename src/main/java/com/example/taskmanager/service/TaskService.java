@@ -1,0 +1,141 @@
+package com.example.taskmanager.service;
+
+import com.example.taskmanager.exception.TaskNotFoundException;
+import com.example.taskmanager.exception.ValidationException;
+import com.example.taskmanager.model.Priority;
+import com.example.taskmanager.model.Status;
+import com.example.taskmanager.model.Task;
+import com.example.taskmanager.model.User;
+import com.example.taskmanager.repository.TaskRepository;
+import com.example.taskmanager.repository.UserRepository;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.Comparator;//lets you sort the same objects in multiple, different ways without changing the original class code.
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/* Business logic. Depends on the Repository interface, not the concrete
+ implementation, so it survives the Week 2 switch to a database.
+ The query methods are where lambdas and streams get exercised.
+
+ SECURITY: every public method takes the logged-in username and works ONLY on
+ that user's tasks - currentUser() turns the name into the owning User, and all
+ queries go through the owner-aware repository methods.
+ */
+// SPRING NOTE: @Service marks this as a "bean" Spring creates and manages.
+// Spring sees the repository parameters in the constructor and passes them in
+// automatically - that is Dependency Injection (DI). You never call `new` on it.
+@Service //Used in the service layer to define business logic and improve code readability.
+public class TaskService {
+
+    private final TaskRepository repository; //interface (now a Spring Data JPA repository)
+    private final UserRepository userRepository;
+
+    public TaskService(TaskRepository repository, UserRepository userRepository) {
+        this.repository = repository;
+        this.userRepository = userRepository;
+    }
+
+    // Helper: turn the logged-in username into the User row that owns the tasks.
+    private User currentUser(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("No user named " + username));
+    }
+
+    public Task add(Task task, String username) {
+        if (task.getTitle() == null || task.getTitle().isBlank()) {
+            throw new ValidationException("Task title must not be empty");
+        }
+        task.setOwner(currentUser(username));   // stamp the owner before saving
+        return repository.save(task);
+    }
+    /*Stream is a way of going through a collection of data such that
+    the programmer determines the operation to be performed on each value.
+    No record is kept of the index or the variable being processed at any given time.*/
+    public Task getById(Long id, String username) {
+        // only returns the task if THIS user owns it; otherwise same 404 as missing
+        return repository.findByIdAndOwner(id, currentUser(username))
+                .orElseThrow(() -> new TaskNotFoundException(id));
+    }
+
+    public List<Task> getAll(String username) {
+        return repository.findByOwner(currentUser(username));   // was findAll()
+    }
+
+    public Task changeStatus(Long id, Status status, String username) {
+        Task task = getById(id, username);   // owner-checked
+        task.setStatus(status);
+        return repository.save(task);
+    }
+
+    // Replaces the whole task when editing (used by the PUT endpoint).
+    public Task update(Long id, Task data, String username) {
+        Task existing = getById(id, username); // throws TaskNotFoundException (-> 404) if missing or not owned
+        if (data.getTitle() == null || data.getTitle().isBlank()) {
+            throw new ValidationException("Task title must not be empty");
+        }
+        existing.setTitle(data.getTitle());
+        existing.setDescription(data.getDescription());
+        existing.setPriority(data.getPriority());
+        if (data.getStatus() != null) {
+            existing.setStatus(data.getStatus());
+        }
+        existing.setDueDate(data.getDueDate());
+        return repository.save(existing);
+    }
+
+    public void delete(Long id, String username) {
+        // only delete if that id exists AND belongs to this user
+        if (!repository.existsByIdAndOwner(id, currentUser(username))) {
+            throw new TaskNotFoundException(id);
+        }
+        repository.deleteById(id);
+    }
+
+    /*An event chain may include dumping some of the values, converting values
+    from one form to another, or calculations. A stream does not change the values in the original data collection,
+    but merely processes them.If you want to retain the transformations,
+    they need to be compiled into another data collection.*/
+    public List<Task> byStatus(Status status, String username) {
+        return repository.findByOwner(currentUser(username)).stream()
+                .filter(t -> t.getStatus() == status)//filter (value -> filter condition) return only the value that matches the condition
+                .toList();//to store the results in a list
+    }
+    /*t-> t.getStatus() lambda expression
+    is shorthand provided by Java for anonymous methods that do not have an "owner", i.e., they are not part of a class or an interface.
+        The function contains both the parameter definition and the function body.*/
+    public List<Task> byPriority(Priority priority, String username) {
+        return repository.findByOwner(currentUser(username)).stream()//The method is called on collection that implements the Collection interface, such as an ArrayList Object.
+                .filter(t -> t.getPriority() == priority)//The elements that do not satisfy the filter condition are removed from the string
+                .toList();
+    }
+
+    public List<Task> search(String keyword, String username) {
+        String key = keyword.toLowerCase();
+        return repository.findByOwner(currentUser(username)).stream()
+                .filter(t -> t.getTitle().toLowerCase().contains(key)//avoid case sensitivity
+                        || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
+                .toList();
+    }
+
+    public List<Task> overdue(LocalDate today, String username) {
+        return repository.findByOwner(currentUser(username)).stream()
+                .filter(t -> t.isOverdue(today))
+                .sorted(Comparator.comparing(Task::getDueDate))
+                .toList();
+    }
+
+    public List<Task> sortedByPriority(String username) {
+        return repository.findByOwner(currentUser(username)).stream()
+                .sorted(Comparator.comparingInt((Task t) -> t.getPriority().weight()).reversed())
+                .toList();
+    }
+
+    public Map<Status, Long> countByStatus(String username) {
+        return repository.findByOwner(currentUser(username)).stream()
+                .collect(Collectors.groupingBy(Task::getStatus, Collectors.counting()));//creates a new map object that holds the collected values.
+    }
+}
