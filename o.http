@@ -1,5 +1,0 @@
-### GET request to example server
-GET http://localhost:8082/api/tasks
-
-###
-http://localhost:8082/register
