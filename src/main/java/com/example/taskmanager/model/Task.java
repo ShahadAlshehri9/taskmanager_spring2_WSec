@@ -51,6 +51,9 @@ public class Task {
     @JsonIgnore                       // never serialize the owner (and its hash) into JSON
     private User owner;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "project_id", nullable = true)
+    private Project project;
     // JPA requires a no-argument constructor. but Hibernate/Jackson can use this.
     protected Task() {
         this.status = Status.TODO;
@@ -61,9 +64,24 @@ public class Task {
         this.description = description;
         this.priority = priority;
         this.dueDate = dueDate;
-        this.status = Status.TODO;//
+        this.status = Status.TODO;
         // createdAt is now set by onCreate() just before the row is inserted.
     }
+
+    public Task(LocalDateTime createdAt, Long id, String title,
+                String description, Priority priority, Status status,
+                LocalDate dueDate, User owner, Project project) {
+        this.createdAt = createdAt;
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.priority = priority;
+        this.status = status;
+        this.dueDate = dueDate;
+        this.owner = owner;
+        this.project=project;
+    }
+
     // @PrePersist (below) fills it in right before insert.
     // Runs automatically right before this task is first saved to the database.
     @PrePersist
@@ -107,6 +125,16 @@ public class Task {
 
     public void setOwner(User owner) {
         this.owner = owner;
+    }
+
+
+
+    public Project getProject() {
+        return project;
+    }
+
+    public void setProject(Project project) {
+        this.project = project;
     }
 
     @Override

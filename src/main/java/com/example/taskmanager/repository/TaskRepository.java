@@ -1,9 +1,6 @@
 package com.example.taskmanager.repository;
 
-import com.example.taskmanager.model.Priority;
-import com.example.taskmanager.model.Status;
-import com.example.taskmanager.model.Task;
-import com.example.taskmanager.model.User;
+import com.example.taskmanager.model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
@@ -20,10 +17,9 @@ import java.util.Optional;
  * the database-native alternative to filtering with streams in the service.
  */
 public interface TaskRepository extends JpaRepository<Task, Long> {
-    //List<Task> findByStatus(Status status);
-    //List<Task> findByPriority(Priority priority);
     List<Task> findByOwner(User owner);
     Optional<Task> findByIdAndOwner(Long id, User owner);
     boolean existsByIdAndOwner(Long id, User owner);
     void deleteByOwner(User owner);
+    List<Task> findByProjectAndOwner(Project project, User owner);
 }

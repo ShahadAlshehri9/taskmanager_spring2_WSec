@@ -1,11 +1,10 @@
 package com.example.taskmanager.service;
 
+import com.example.taskmanager.exception.ProjectNotFoundException;
 import com.example.taskmanager.exception.TaskNotFoundException;
 import com.example.taskmanager.exception.ValidationException;
-import com.example.taskmanager.model.Priority;
-import com.example.taskmanager.model.Status;
-import com.example.taskmanager.model.Task;
-import com.example.taskmanager.model.User;
+import com.example.taskmanager.model.*;
+import com.example.taskmanager.repository.ProjectRepository;
 import com.example.taskmanager.repository.TaskRepository;
 import com.example.taskmanager.repository.UserRepository;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -33,10 +32,12 @@ public class TaskService {
 
     private final TaskRepository repository; //interface (now a Spring Data JPA repository)
     private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
 
-    public TaskService(TaskRepository repository, UserRepository userRepository) {
+    public TaskService(TaskRepository repository, UserRepository userRepository, ProjectRepository projectRepository) {
         this.repository = repository;
         this.userRepository = userRepository;
+        this.projectRepository=projectRepository;
     }
 
     // Helper: turn the logged-in username into the User row that owns the tasks.
@@ -70,7 +71,9 @@ public class TaskService {
         task.setStatus(status);
         return repository.save(task);
     }
-
+    public List<Task> getAllTasks(String username,String ProjectTitle){
+        return repository.findByOwner(currentUser(username)).stream().filter(t-> t.getProject().getTitle().equalsIgnoreCase(ProjectTitle)).toList();
+    }
     // Replaces the whole task when editing (used by the PUT endpoint).
     public Task update(Long id, Task data, String username) {
         Task existing = getById(id, username); // throws TaskNotFoundException (-> 404) if missing or not owned
@@ -137,5 +140,32 @@ public class TaskService {
     public Map<Status, Long> countByStatus(String username) {
         return repository.findByOwner(currentUser(username)).stream()
                 .collect(Collectors.groupingBy(Task::getStatus, Collectors.counting()));//creates a new map object that holds the collected values.
+    }
+
+    public Task createTaskForProjectAndAssign(Long projectId, String assigneeUsername, Task taskRequest, String leaderUsername) {
+        // step one find the project
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ProjectNotFoundException(projectId));
+
+        // next we will verify the person making the request is the Project Leader
+        if (!project.getLeader().getUsername().equals(leaderUsername)) {
+            throw new ValidationException("Only the project leader can create and assign tasks for this project.");
+        }
+
+        // validate user assigned to existing find the user being assigned
+        User assignee = userRepository.findByUsername(assigneeUsername)
+                .orElseThrow(() -> new UsernameNotFoundException("User " + assigneeUsername + " not found"));
+
+        //  its team member ? Verify the assignee is actually in the project's team list
+        if (!project.getTeamMembers().contains(assignee)) {
+            throw new ValidationException("Cannot assign task. User is not a team member of this project.");
+        }
+
+        // last link the task to the project and the user
+        taskRequest.setProject(project);
+        taskRequest.setOwner(assignee);
+
+        // 6. Save and return the new task
+        return repository.save(taskRequest);
     }
 }

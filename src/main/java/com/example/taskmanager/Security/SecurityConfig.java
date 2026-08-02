@@ -66,6 +66,7 @@ public class SecurityConfig {
                         .requestMatchers("/login").permitAll()      // public: anyone may log in
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/tasks/**").hasRole("USER")
+                        .requestMatchers("/projects/**").hasRole("USER")
                         .anyRequest().authenticated()
                 ).addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
