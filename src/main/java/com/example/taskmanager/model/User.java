@@ -38,7 +38,7 @@ public class User {
         this.id = id;
     }
 
-    public Role getRole() {
+    public  Role getRole() {
         return role;
     }
 

@@ -37,18 +37,14 @@ public class RegisterController {
                 request.getPassword() == null || request.getPassword().length() < 6) {
             throw new ValidationException("Invalid username or password format");
         }
-
         // validate uniqueness -> reject duplicate usernames
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new ValidationException("Username is already taken");
         }
-
         //  Hashing password, then save -> the one place plain text is turned into a hash
         String hashed = passwordEncoder.encode(request.getPassword());
         userRepository.save(new User(request.getUsername(), hashed, Role.USER));
-
         String token = jwtUtil.generateToken(request);
-
         return ResponseEntity.status(HttpStatus.CREATED)//do i need this for the front end?
                 .body(Map.of(
                         "message", "Account created",

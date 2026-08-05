@@ -28,7 +28,6 @@ public class Project {
     private String title;
     @ManyToOne(optional = false)      // many projects -> one user leader
     @JoinColumn(name = "leader_id")   // adds leader_id foreign-key column
-    @JsonIgnore                       // never serialize the owner (and its hash) into JSON
     private User leader;
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "project_team",
@@ -67,7 +66,7 @@ public class Project {
         return "Project{" +
                 "id=" + id +
                 ", title='" + title + '\'' +
-                ", leader=" + leader +
+                ", leader=" + leader.getUsername() +
                 ", description='" + description + '\'' +
                 ", status=" + status +
                 ", dueDate=" + dueDate +

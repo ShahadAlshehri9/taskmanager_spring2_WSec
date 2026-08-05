@@ -7,6 +7,7 @@ import com.example.taskmanager.service.ProjectService;
 import com.example.taskmanager.service.TaskService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -27,22 +28,26 @@ public class ProjectController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Project> createProject(@RequestBody Project project, Principal principal) {
         Project created = projectService.addProject(project, principal.getName());
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Project>> getAllProjects(Principal principal) {
         return ResponseEntity.ok(projectService.getAll(principal.getName()));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Project> getProjectById(@PathVariable Long id, Principal principal) {
         return ResponseEntity.ok(projectService.getById(id, principal.getName()));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Project> updateProject(
             @PathVariable Long id,
             @RequestBody Project data, // Fixed: Using Project here instead of Task
@@ -52,6 +57,7 @@ public class ProjectController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("isAuthenticated() or @projectSecurity.isLeader(#id, authentication.name)")
     public ResponseEntity<Project> changeStatus(
             @PathVariable Long id,
             @RequestParam Status status,
@@ -61,12 +67,14 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @projectSecurity.isLeader(#id, authentication.name)")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id, Principal principal) {
         projectService.delete(id, principal.getName());
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Project>> searchProjects(
             @RequestParam String keyword,
             Principal principal) {
@@ -74,17 +82,20 @@ public class ProjectController {
     }
 
     @GetMapping("/overdue")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Project>> getOverdueProjects(Principal principal) {
         return ResponseEntity.ok(projectService.overdue(LocalDate.now(), principal.getName()));
     }
 
 
     @GetMapping("/statusCount")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<Status, Long>> countProjectsByStatus(Principal principal) {
         return ResponseEntity.ok(projectService.countByStatus(principal.getName()));
     }
 
     @GetMapping("/{title}/tasks")
+    @PreAuthorize("isAuthenticated() or @projectSecurity.isLeader(#id, authentication.name)")
     public ResponseEntity<List<Task>> getProjectTasks(
             @PathVariable String title,
             Principal principal) {
@@ -92,6 +103,7 @@ public class ProjectController {
     }
     // POST /projects/5/team/ali -> Adds user "ali" to project 5
     @PostMapping("/{id}/team/{targetUsername}")
+    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
     public ResponseEntity<Project> addTeamMember(
             @PathVariable Long id,
             @PathVariable String targetUsername,
@@ -102,6 +114,7 @@ public class ProjectController {
 
     // DELETE /projects/5/team/ali -> Removes user "ali" from project 5
     @DeleteMapping("/{id}/team/{targetUsername}")
+    @PreAuthorize("hasAuthority('PROJECT_MEMBER_REMOVE')")
     public ResponseEntity<Project> removeTeamMember(
             @PathVariable Long id,
             @PathVariable String targetUsername,
@@ -113,6 +126,7 @@ public class ProjectController {
     //Long projectId, String assigneeUsername, Task taskRequest, String leaderUsername
     // PATCH /tasks/10/assign/sara -> Assigns new task of project 10 to user "sara"
     @PatchMapping("/{id}/assign/{assigneeUsername}")
+    @PreAuthorize("hasAuthority('PROJECT_TASK_ASSIGN')")
     public ResponseEntity<Task> assignTask(
             @PathVariable Long id,
             @PathVariable String assigneeUsername,
@@ -121,4 +135,6 @@ public class ProjectController {
         Task updated = taskService.createTaskForProjectAndAssign(id, assigneeUsername,task, principal.getName());
         return ResponseEntity.ok(updated);
     }
+
+
 }

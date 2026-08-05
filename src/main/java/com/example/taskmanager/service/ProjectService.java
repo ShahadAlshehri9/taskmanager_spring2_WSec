@@ -51,6 +51,10 @@ private User currentUser(String username) {
         return repository.findByLeader(currentUser(username));
     }
 
+    //for the admin -
+    public List<Project> getAllProjects() {
+        return repository.findAll();
+    }
     public Project changeStatus(Long id, Status status, String username) {
         Project project = getById(id, username);
         project.setStatus(status);

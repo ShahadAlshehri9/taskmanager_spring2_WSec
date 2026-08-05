@@ -6,6 +6,7 @@ import com.example.taskmanager.service.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.time.LocalDate;
@@ -53,6 +54,7 @@ public class TaskController {
     // @RequestBody turns the incoming JSON into a Task object Binds the HTTP request body to a Java object. Commonly used with POST and PUT requests.
     // @Valid runs the @NotBlank String must contain at least one non-whitespace character / @NotNull Field value must not be null checks first validate request . Returns HTTP 201 Created.success
     @PostMapping//Sends data to the server # no info is needed but should send a body in the http request as JSON
+    @PreAuthorize("hasAuthority('PERSONAL_TASK_CREATE')")
     public ResponseEntity<Task> create(@Valid @RequestBody Task task, Principal principal) {
         Task saved = service.add(task, principal.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -60,6 +62,7 @@ public class TaskController {
 
     // PUT /tasks/5  -> replace/edit an existing task
     @PutMapping("/{id}")//Updates existing data with one info.
+    @PreAuthorize("hasAuthority('PERSONAL_TASK_UPDATE')")
     public Task update(@PathVariable Long id, @Valid @RequestBody Task task, Principal principal) {
         return service.update(id, task, principal.getName());
     }
@@ -73,6 +76,7 @@ public class TaskController {
 
     // DELETE /tasks/5  -> remove a task  (menu option 4). 204 = success, no body.
     @DeleteMapping("/{id}")//Deletes data # needs info !
+    @PreAuthorize("hasAuthority('PERSONAL_TASK_DELETE')")
     public ResponseEntity<Void> delete(@PathVariable Long id, Principal principal) {
         service.delete(id, principal.getName());
         return ResponseEntity.noContent().build();

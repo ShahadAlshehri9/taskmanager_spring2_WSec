@@ -1,11 +1,14 @@
 package com.example.taskmanager.service;
 import com.example.taskmanager.dto.UserDTO;
+import com.example.taskmanager.exception.ProjectNotFoundException;
 import com.example.taskmanager.exception.ValidationException;
+import com.example.taskmanager.model.Project;
 import com.example.taskmanager.model.Role;
 import com.example.taskmanager.model.User;
 import com.example.taskmanager.repository.ProjectRepository;
 import com.example.taskmanager.repository.TaskRepository;
 import com.example.taskmanager.repository.UserRepository;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +49,23 @@ public class AdminService {
         projectRepository.deleteByLeader(user);
         userRepository.delete(user);        // then the account
 
+    }
+    public Project assignLeader(Long projectId, String username) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ProjectNotFoundException(projectId));
+        User leader = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("No user named " + username));
+        project.setLeader(leader);
+        project.getTeamMembers().add(leader);
+        return projectRepository.save(project);
+    }
+
+
+    public Project revokeLeader(Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ProjectNotFoundException(projectId));
+        project.setLeader(null);
+        return projectRepository.save(project);
     }
 
 }
