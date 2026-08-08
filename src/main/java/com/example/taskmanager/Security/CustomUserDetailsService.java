@@ -1,6 +1,5 @@
 package com.example.taskmanager.Security;
 
-import com.example.taskmanager.model.Authorities;
 import com.example.taskmanager.model.User;
 import com.example.taskmanager.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -40,6 +39,7 @@ private final UserRepository userRepository;
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),                                   // the stored hash
-                Authorities.forRole(user.getRole())); //this to match the add ROLE prefix in .hasRole("")
+                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))//this to match the add ROLE prefix in .hasRole("")
+        );
     }
 }

@@ -1,6 +1,5 @@
 package com.example.taskmanager.service;
 
-import com.example.taskmanager.Config.ActivityType;
 import com.example.taskmanager.exception.ProjectNotFoundException;
 import com.example.taskmanager.exception.TaskNotFoundException;
 import com.example.taskmanager.exception.ValidationException;
@@ -15,7 +14,6 @@ import java.time.LocalDate;
 import java.util.Comparator;//lets you sort the same objects in multiple, different ways without changing the original class code.
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /* Business logic. Depends on the Repository interface, not the concrete
@@ -35,13 +33,11 @@ public class TaskService {
     private final TaskRepository repository; //interface (now a Spring Data JPA repository)
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
-    private final ActivityService activityService;
 
-    public TaskService(TaskRepository repository, UserRepository userRepository, ProjectRepository projectRepository,ActivityService activityService) {
+    public TaskService(TaskRepository repository, UserRepository userRepository, ProjectRepository projectRepository) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.projectRepository=projectRepository;
-        this.activityService = activityService;
     }
 
     // Helper: turn the logged-in username into the User row that owns the tasks.
@@ -54,14 +50,8 @@ public class TaskService {
         if (task.getTitle() == null || task.getTitle().isBlank()) {
             throw new ValidationException("Task title must not be empty");
         }
-        if (task.getProject() != null) {
-            throw new ValidationException("Personal tasks cannot belong to a project.");
-        }
         task.setOwner(currentUser(username));   // stamp the owner before saving
-        Task saved = repository.save(task);
-        activityService.record(username, ActivityType.TASK_CREATED, saved.getId(),
-                "Created task '" + saved.getTitle() + "'");
-        return saved;
+        return repository.save(task);
     }
     /*Stream is a way of going through a collection of data such that
     the programmer determines the operation to be performed on each value.
@@ -79,10 +69,7 @@ public class TaskService {
     public Task changeStatus(Long id, Status status, String username) {
         Task task = getById(id, username);   // owner-checked
         task.setStatus(status);
-        Task saved = repository.save(task);
-        activityService.record(username, ActivityType.TASK_STATUS_CHANGED, id,
-                "Marked '" + saved.getTitle() + "' as " + status);
-        return saved;
+        return repository.save(task);
     }
     public List<Task> getAllTasks(String username,String ProjectTitle){
         return repository.findByOwner(currentUser(username)).stream().filter(t-> t.getProject().getTitle().equalsIgnoreCase(ProjectTitle)).toList();
@@ -100,9 +87,7 @@ public class TaskService {
             existing.setStatus(data.getStatus());
         }
         existing.setDueDate(data.getDueDate());
-        Task saved = repository.save(existing);
-        activityService.record(username,ActivityType.TASK_UPDATED, saved.getId(),"The"+saved.getTitle()+" Task has been Updated");
-        return saved;
+        return repository.save(existing);
     }
 
     public void delete(Long id, String username) {
@@ -110,8 +95,6 @@ public class TaskService {
         if (!repository.existsByIdAndOwner(id, currentUser(username))) {
             throw new TaskNotFoundException(id);
         }
-        Optional<Task> task = repository.findByIdAndOwner(id,currentUser(username));
-        activityService.record(username,ActivityType.TASK_DELETED, id," the "+ task.get().getTitle() +" has been deleted");
         repository.deleteById(id);
     }
 
@@ -120,8 +103,7 @@ public class TaskService {
     but merely processes them.If you want to retain the transformations,
     they need to be compiled into another data collection.*/
     public List<Task> byStatus(Status status, String username) {
-
-         return repository.findByOwner(currentUser(username)).stream()
+        return repository.findByOwner(currentUser(username)).stream()
                 .filter(t -> t.getStatus() == status)//filter (value -> filter condition) return only the value that matches the condition
                 .toList();//to store the results in a list
     }
@@ -183,10 +165,7 @@ public class TaskService {
         taskRequest.setProject(project);
         taskRequest.setOwner(assignee);
 
-        // Save and return the new task
-        Task saved = repository.save(taskRequest);
-        activityService.record(leaderUsername,ActivityType.PROJECT_TASK_ASSIGNED, saved.getId() ," the task "+ saved.getTitle() +" has been Assigned to"+ assigneeUsername);
-        activityService.record(leaderUsername,ActivityType.PROJECT_TASK_CREATED, saved.getId() ," the task "+ saved.getTitle() +" has been Created");
-        return saved;
+        // 6. Save and return the new task
+        return repository.save(taskRequest);
     }
 }
