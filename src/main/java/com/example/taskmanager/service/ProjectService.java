@@ -1,5 +1,6 @@
 package com.example.taskmanager.service;
 
+import com.example.taskmanager.dto.TaskDTO;
 import com.example.taskmanager.exception.ProjectNotFoundException;
 import com.example.taskmanager.exception.TaskNotFoundException;
 import com.example.taskmanager.exception.ValidationException;
@@ -13,9 +14,7 @@ import com.example.taskmanager.repository.UserRepository;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,7 +44,7 @@ private User currentUser(String username) {
 
     public Project getById(Long id, String username) {
         return repository.findByIdAndLeader(id, currentUser(username))
-                .orElseThrow(() -> new TaskNotFoundException(id));
+                .orElseThrow(() -> new ProjectNotFoundException(id));
     }
     public List<Project> getAll(String username) {
         return repository.findByLeader(currentUser(username));
@@ -56,7 +55,8 @@ private User currentUser(String username) {
         return repository.findAll();
     }
     public Project changeStatus(Long id, Status status, String username) {
-        Project project = getById(id, username);
+        Project project = repository.findByIdAndLeader(id,currentUser(username))
+                .orElseThrow(() -> new UsernameNotFoundException("project not found"));
         project.setStatus(status);
         return repository.save(project);
     }
@@ -90,6 +90,13 @@ private User currentUser(String username) {
                         || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
                 .toList();
     }
+    public List<Project> searchAdmin(String keyword) {
+        String key = keyword.toLowerCase();
+        return repository.findAll().stream()
+                .filter(t -> t.getTitle().toLowerCase().contains(key)//avoid case sensitivity
+                        || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
+                .toList();
+    }
 
     public List<Project> overdue(LocalDate today, String username) {
         return repository.findByLeader(currentUser(username)).stream()
@@ -105,9 +112,28 @@ private User currentUser(String username) {
                 .collect(Collectors.groupingBy(Project::getStatus, Collectors.counting()));//creates a new map object that holds the collected values.
     }
 
-    public List<Task> getAllTasks(String username,String Ptitle){
-     return taskRepository.findByOwner(currentUser(username)).stream().filter(t-> t.getProject().getTitle().equalsIgnoreCase(Ptitle)).toList();
+    public List<TaskDTO> getAllTasks(String username, String projectTitle) {
+
+        Optional<Project> project = repository
+                .findByLeader(currentUser(username))
+                .stream()
+                .filter(p -> p.getTitle().equalsIgnoreCase(projectTitle))
+                .findFirst();
+
+        if (project.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Project selectedProject = project.get();
+
+        return taskRepository.findAll()
+                .stream()
+                .filter(task -> task.getProject() != null)
+                .filter(task -> task.getProject().getId().equals(selectedProject.getId()))
+                .map(TaskDTO::from).toList();
     }
+
+
     public void deleteProject(Long id,String username){
         if (!repository.existsByIdAndLeader(id, currentUser(username))) {
             throw new ProjectNotFoundException(id);
@@ -137,6 +163,8 @@ private User currentUser(String username) {
         project.getTeamMembers().remove(memberToRemove);
         return repository.save(project);
     }
+
+
 
 
 }

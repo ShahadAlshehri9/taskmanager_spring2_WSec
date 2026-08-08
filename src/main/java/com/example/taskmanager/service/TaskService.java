@@ -57,10 +57,10 @@ public class TaskService {
         if (task.getProject() != null) {
             throw new ValidationException("Personal tasks cannot belong to a project.");
         }
+        task.setOwner(currentUser(username));   // stamp the owner before saving
         Task saved = repository.save(task);
         activityService.record(username, ActivityType.TASK_CREATED, saved.getId(),
                 "Created task '" + saved.getTitle() + "'");
-        task.setOwner(currentUser(username));   // stamp the owner before saving
         return saved;
     }
     /*Stream is a way of going through a collection of data such that

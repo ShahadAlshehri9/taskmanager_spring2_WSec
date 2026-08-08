@@ -1,5 +1,6 @@
 package com.example.taskmanager.controller;
 
+import com.example.taskmanager.dto.TaskDTO;
 import com.example.taskmanager.model.Project;
 import com.example.taskmanager.model.Status;
 import com.example.taskmanager.model.Task;
@@ -50,14 +51,14 @@ public class ProjectController {
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Project> updateProject(
             @PathVariable Long id,
-            @RequestBody Project data, // Fixed: Using Project here instead of Task
+            @RequestBody Project data,
             Principal principal) {
         Project updated = projectService.update(id, data, principal.getName());
         return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("isAuthenticated() or @projectSecurity.isLeader(#id, authentication.name)")
+    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
     public ResponseEntity<Project> changeStatus(
             @PathVariable Long id,
             @RequestParam Status status,
@@ -67,7 +68,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @projectSecurity.isLeader(#id, authentication.name)")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id, Principal principal) {
         projectService.delete(id, principal.getName());
         return ResponseEntity.noContent().build();
@@ -80,6 +81,13 @@ public class ProjectController {
             Principal principal) {
         return ResponseEntity.ok(projectService.search(keyword, principal.getName()));
     }
+    @GetMapping("/search/admin")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<List<Project>> SearchAdmin(@RequestParam String Keyword){
+        return ResponseEntity.ok(projectService.searchAdmin(Keyword));
+
+    }
+
 
     @GetMapping("/overdue")
     @PreAuthorize("isAuthenticated()")
@@ -96,13 +104,13 @@ public class ProjectController {
 
     @GetMapping("/{title}/tasks")
     @PreAuthorize("isAuthenticated() or @projectSecurity.isLeader(#id, authentication.name)")
-    public ResponseEntity<List<Task>> getProjectTasks(
+    public ResponseEntity<List<TaskDTO>> getProjectTasks(
             @PathVariable String title,
             Principal principal) {
         return ResponseEntity.ok(projectService.getAllTasks(principal.getName(), title));
     }
     // POST /projects/5/team/ali -> Adds user "ali" to project 5
-    @PostMapping("/{id}/team/{targetUsername}")
+    @GetMapping("/{id}/team/{targetUsername}")
     @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
     public ResponseEntity<Project> addTeamMember(
             @PathVariable Long id,

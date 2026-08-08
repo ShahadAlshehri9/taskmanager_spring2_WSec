@@ -1,5 +1,7 @@
 package com.example.taskmanager.controller;
 
+import com.example.taskmanager.dto.ProjectDTO;
+import com.example.taskmanager.dto.TaskDTO;
 import com.example.taskmanager.model.Status;
 import com.example.taskmanager.model.Task;
 import com.example.taskmanager.service.TaskService;
@@ -39,8 +41,8 @@ public class TaskController {
 
     // GET /tasks  -> list every task THIS user owns
     @GetMapping //Retrieves data from the server all data in this case
-    public List<Task> getAll(Principal principal) {
-        return service.getAll(principal.getName());
+    public List<TaskDTO> getAll(Principal principal) {
+        return service.getAll(principal.getName()).stream().map(TaskDTO::from).toList();
     }
 
     // GET /tasks/5  -> one task by id. {id} in the URL becomes the method

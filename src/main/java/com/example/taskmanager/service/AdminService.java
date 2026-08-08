@@ -45,6 +45,11 @@ public class AdminService {
         if (user.getRole() == Role.ADMIN) {
             throw new ValidationException("Admin accounts cannot be deleted");
         }
+        List<Project> teams = projectRepository.findByTeamMembersContains(user);
+        for (Project p : teams) {
+            p.getTeamMembers().remove(user);
+        }
+        projectRepository.saveAll(teams);
         taskRepository.deleteByOwner(user);  // tasks first (owner_id foreign key)
         projectRepository.deleteByLeader(user);
         userRepository.delete(user);        // then the account

@@ -59,14 +59,7 @@ public class Task {
         this.status = Status.TODO;
     }
 
-    public Task(String title, String description, Priority priority, LocalDate dueDate) {
-        this.title = title;
-        this.description = description;
-        this.priority = priority;
-        this.dueDate = dueDate;
-        this.status = Status.TODO;
-        // createdAt is now set by onCreate() just before the row is inserted.
-    }
+
 
     public Task(LocalDateTime createdAt, Long id, String title,
                 String description, Priority priority, Status status,
