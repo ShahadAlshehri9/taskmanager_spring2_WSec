@@ -1,5 +1,6 @@
 package com.example.taskmanager.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 
@@ -15,7 +16,8 @@ public class User {
     private String username;
 
     @Size(min= 6, message = "Password must be 6 characters at least")
-    @Column(nullable = false) // in the database level this will not allow database to store null in any row by mistake
+    @Column(nullable = false)// in the database level this will not allow database to store null in any row by mistake
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)   // accepted on input, never serialized
     private String password; //The password column stores a hash
     // store "USER"/"ADMIN" as readable text
     @Enumerated(EnumType.STRING)
@@ -38,7 +40,7 @@ public class User {
         this.id = id;
     }
 
-    public Role getRole() {
+    public  Role getRole() {
         return role;
     }
 

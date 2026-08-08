@@ -20,6 +20,6 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByOwner(User owner);
     Optional<Task> findByIdAndOwner(Long id, User owner);
     boolean existsByIdAndOwner(Long id, User owner);
+    List<Task> findByProject(Project project);
     void deleteByOwner(User owner);
-    List<Task> findByProjectAndOwner(Project project, User owner);
 }
