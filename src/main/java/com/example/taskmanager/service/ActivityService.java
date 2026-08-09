@@ -1,7 +1,7 @@
 package com.example.taskmanager.service;
 
-import com.example.taskmanager.Config.Activity;
-import com.example.taskmanager.Config.ActivityType;
+import com.example.taskmanager.model.Activity;
+import com.example.taskmanager.model.ActivityType;
 import com.example.taskmanager.repository.ActivityRepository;
 import org.springframework.stereotype.Service;
 

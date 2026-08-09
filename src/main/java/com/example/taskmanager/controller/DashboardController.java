@@ -1,11 +1,9 @@
 package com.example.taskmanager.controller;
 
 
-import com.example.taskmanager.Config.Activity;
+import com.example.taskmanager.model.Activity;
 import com.example.taskmanager.service.ActivityService;
 import com.example.taskmanager.service.DashboardService;
-import com.example.taskmanager.service.ProjectService;
-import com.example.taskmanager.service.TaskService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

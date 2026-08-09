@@ -9,5 +9,5 @@ import java.util.stream.Collectors;
 //* a user account normal user --> use all his tasks services after auth
 //Spring Security internally prefixes roles with ROLE_ so the hasRole("USER") will check ROLE_USER
 public enum Role {
-    ADMIN,USER
+    ADMIN,MANAGER,USER
 }

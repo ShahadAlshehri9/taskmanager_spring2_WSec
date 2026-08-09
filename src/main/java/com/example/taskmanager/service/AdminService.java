@@ -23,21 +23,25 @@ public class AdminService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
 
-    public AdminService(UserRepository userRepository, TaskRepository taskRepository, ProjectRepository projectRepository) {
+    public AdminService(UserRepository userRepository,
+                        TaskRepository taskRepository,
+                        ProjectRepository projectRepository) {
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
     }
 
-    // Every account, mapped to the safe UserView (no password).
+    /** Every account as a safe DTO (no password). */
     public List<UserDTO> listUsers() {
-        return userRepository.findAll().stream() // Fetches heavy User entities from DB
-                .map(UserDTO::from) // Safely converts User to UserView dto where no password can be seen by the admin.
-                .toList(); // a list with no passwords
+        return userRepository.findAll().stream()
+                .map(UserDTO::from)
+                .toList();
     }
 
-    // One transaction: delete the user's tasks, then the user - or roll BOTH
-    // back on any failure, so we never end up half-deleted.
+    /**
+     * Delete an account and everything that references it, in FK-safe order:
+     * team memberships, then owned tasks, then led projects, then the account.
+     */
     @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
@@ -45,32 +49,32 @@ public class AdminService {
         if (user.getRole() == Role.ADMIN) {
             throw new ValidationException("Admin accounts cannot be deleted");
         }
+
+        //remove them from every team (clears project_team rows)
         List<Project> teams = projectRepository.findByTeamMembersContains(user);
         for (Project p : teams) {
             p.getTeamMembers().remove(user);
         }
         projectRepository.saveAll(teams);
-        taskRepository.deleteByOwner(user);  // tasks first (owner_id foreign key)
-        projectRepository.deleteByLeader(user);
-        userRepository.delete(user);        // then the account
 
-    }
-    public Project assignLeader(Long projectId, String username) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ProjectNotFoundException(projectId));
-        User leader = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("No user named " + username));
-        project.setLeader(leader);
-        project.getTeamMembers().add(leader);
-        return projectRepository.save(project);
+        //detach them as leader of any project they lead (keep the project)
+        List<Project> led = projectRepository.findByLeader(user);
+        for (Project p : led) {
+            p.setLeader(null);
+        }
+        projectRepository.saveAll(led);
+
+        // their owned tasks, then  the account
+        taskRepository.deleteByOwner(user);
+        userRepository.delete(user);
     }
 
-
-    public Project revokeLeader(Long projectId) {
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new ProjectNotFoundException(projectId));
-        project.setLeader(null);
-        return projectRepository.save(project);
+    @Transactional
+    public UserDTO changeRole(Long id, Role role) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ValidationException("No user with id " + id));
+        user.setRole(role);
+        return UserDTO.from(userRepository.save(user));
     }
 
 }

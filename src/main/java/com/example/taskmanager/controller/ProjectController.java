@@ -1,5 +1,6 @@
 package com.example.taskmanager.controller;
 
+import com.example.taskmanager.dto.ProjectDTO;
 import com.example.taskmanager.dto.TaskDTO;
 import com.example.taskmanager.model.Project;
 import com.example.taskmanager.model.Status;
@@ -19,130 +20,89 @@ import java.util.Map;
 @RestController
 @RequestMapping("/projects")
 public class ProjectController {
-
     private final ProjectService projectService;
-            private final TaskService taskService;
+    private final TaskService taskService;
 
-    public ProjectController(ProjectService projectService,TaskService taskService) {
+    public ProjectController(ProjectService projectService, TaskService taskService) {
         this.projectService = projectService;
         this.taskService = taskService;
     }
 
-    @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Project> createProject(@RequestBody Project project, Principal principal) {
-        Project created = projectService.addProject(project, principal.getName());
-        return new ResponseEntity<>(created, HttpStatus.CREATED);
-    }
-
+    // GET /projects -> projects I LEAD
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Project>> getAllProjects(Principal principal) {
-        return ResponseEntity.ok(projectService.getAll(principal.getName()));
+    public List<ProjectDTO> myLedProjects(Principal principal) {
+        return projectService.getAll(principal.getName()).stream().map(ProjectDTO::from).toList();
     }
 
+    // GET /projects/member -> projects I am a MEMBER of
+    @GetMapping("/member")
+    @PreAuthorize("hasAuthority('PROJECT_VIEW_MEMBER')")
+    public List<ProjectDTO> myMemberProjects(Principal principal) {
+        return projectService.getMemberProjects(principal.getName()).stream().map(ProjectDTO::from).toList();
+    }
+
+    // GET /projects/5 -> one project I lead
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Project> getProjectById(@PathVariable Long id, Principal principal) {
-        return ResponseEntity.ok(projectService.getById(id, principal.getName()));
+    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
+    public ProjectDTO getProjectById(@PathVariable Long id, Principal principal) {
+        return ProjectDTO.from(projectService.getById(id, principal.getName()));
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Project> updateProject(
-            @PathVariable Long id,
-            @RequestBody Project data,
-            Principal principal) {
-        Project updated = projectService.update(id, data, principal.getName());
-        return ResponseEntity.ok(updated);
-    }
-
+    // PATCH /projects/5/status?status=DONE -> change status (leader)
     @PatchMapping("/{id}/status")
     @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
-    public ResponseEntity<Project> changeStatus(
-            @PathVariable Long id,
-            @RequestParam Status status,
-            Principal principal) {
-        Project updated = projectService.changeStatus(id, status, principal.getName());
-        return ResponseEntity.ok(updated);
+    public ProjectDTO changeStatus(@PathVariable Long id, @RequestParam Status status, Principal principal) {
+        return ProjectDTO.from(projectService.changeStatus(id, status, principal.getName()));
     }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<Void> deleteProject(@PathVariable Long id, Principal principal) {
-        projectService.delete(id, principal.getName());
-        return ResponseEntity.noContent().build();
+    // POST /projects/5/team/ali -> add "ali" to project 5 (leader)
+    @PostMapping("/{id}/team/{targetUsername}")
+    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
+    public ProjectDTO addTeamMember(@PathVariable Long id, @PathVariable String targetUsername, Principal principal) {
+        return ProjectDTO.from(projectService.addTeamMember(id, targetUsername, principal.getName()));
     }
 
+    // DELETE /projects/5/team/ali -> remove "ali" from project 5 (leader)
+    @DeleteMapping("/{id}/team/{targetUsername}")
+    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
+    public ProjectDTO removeTeamMember(@PathVariable Long id, @PathVariable String targetUsername, Principal principal) {
+        return ProjectDTO.from(projectService.removeTeamMember(id, targetUsername, principal.getName()));
+    }
+
+    // PATCH /projects/5/assign/sara -> create a project task and assign it to "sara" (leader)
+    @PatchMapping("/{id}/assign/{assigneeUsername}")
+    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
+    public TaskDTO assignTask(@PathVariable Long id, @PathVariable String assigneeUsername,
+                              @RequestBody Task task, Principal principal) {
+        return TaskDTO.from(taskService.createTaskForProjectAndAssign(id, assigneeUsername, task, principal.getName()));
+    }
+
+    // GET /projects/{title}/tasks -> tasks of one of my led projects, by title
+    @GetMapping("/{title}/tasks")
+    @PreAuthorize("isAuthenticated()")
+    public List<TaskDTO> getProjectTasks(@PathVariable String title, Principal principal) {
+        return projectService.getAllTasks(principal.getName(), title);
+    }
+
+    // GET /projects/search?keyword=api -> search my led projects
     @GetMapping("/search")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Project>> searchProjects(
-            @RequestParam String keyword,
-            Principal principal) {
-        return ResponseEntity.ok(projectService.search(keyword, principal.getName()));
-    }
-    @GetMapping("/search/admin")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<List<Project>> SearchAdmin(@RequestParam String Keyword){
-        return ResponseEntity.ok(projectService.searchAdmin(Keyword));
-
+    public List<ProjectDTO> searchProjects(@RequestParam String keyword, Principal principal) {
+        return projectService.search(keyword, principal.getName()).stream().map(ProjectDTO::from).toList();
     }
 
-
+    // GET /projects/overdue -> my overdue led projects
     @GetMapping("/overdue")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Project>> getOverdueProjects(Principal principal) {
-        return ResponseEntity.ok(projectService.overdue(LocalDate.now(), principal.getName()));
+    public List<ProjectDTO> getOverdueProjects(Principal principal) {
+        return projectService.overdue(LocalDate.now(), principal.getName()).stream().map(ProjectDTO::from).toList();
     }
 
-
+    // GET /projects/statusCount -> count my led projects by status
     @GetMapping("/statusCount")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Map<Status, Long>> countProjectsByStatus(Principal principal) {
-        return ResponseEntity.ok(projectService.countByStatus(principal.getName()));
+    public Map<Status, Long> countProjectsByStatus(Principal principal) {
+        return projectService.countByStatus(principal.getName());
     }
-
-    @GetMapping("/{title}/tasks")
-    @PreAuthorize("isAuthenticated() or @projectSecurity.isLeader(#id, authentication.name)")
-    public ResponseEntity<List<TaskDTO>> getProjectTasks(
-            @PathVariable String title,
-            Principal principal) {
-        return ResponseEntity.ok(projectService.getAllTasks(principal.getName(), title));
-    }
-    // POST /projects/5/team/ali -> Adds user "ali" to project 5
-    @GetMapping("/{id}/team/{targetUsername}")
-    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
-    public ResponseEntity<Project> addTeamMember(
-            @PathVariable Long id,
-            @PathVariable String targetUsername,
-            Principal principal) {
-        Project updated = projectService.addTeamMember(id, targetUsername, principal.getName());
-        return ResponseEntity.ok(updated);
-    }
-
-    // DELETE /projects/5/team/ali -> Removes user "ali" from project 5
-    @DeleteMapping("/{id}/team/{targetUsername}")
-    @PreAuthorize("hasAuthority('PROJECT_MEMBER_REMOVE')")
-    public ResponseEntity<Project> removeTeamMember(
-            @PathVariable Long id,
-            @PathVariable String targetUsername,
-            Principal principal) {
-
-        Project updated = projectService.removeTeamMember(id, targetUsername, principal.getName());
-        return ResponseEntity.ok(updated);
-    }
-    //Long projectId, String assigneeUsername, Task taskRequest, String leaderUsername
-    // PATCH /tasks/10/assign/sara -> Assigns new task of project 10 to user "sara"
-    @PatchMapping("/{id}/assign/{assigneeUsername}")
-    @PreAuthorize("hasAuthority('PROJECT_TASK_ASSIGN')")
-    public ResponseEntity<Task> assignTask(
-            @PathVariable Long id,
-            @PathVariable String assigneeUsername,
-            @RequestBody Task task, Principal principal) {
-
-        Task updated = taskService.createTaskForProjectAndAssign(id, assigneeUsername,task, principal.getName());
-        return ResponseEntity.ok(updated);
-    }
-
-
-}
+  }

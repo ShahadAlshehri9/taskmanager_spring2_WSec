@@ -1,4 +1,4 @@
-package com.example.taskmanager.Config;
+package com.example.taskmanager.model;
 
 public enum ActivityType {
     // personal tasks

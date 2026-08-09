@@ -1,6 +1,6 @@
 package com.example.taskmanager.repository;
 
-import com.example.taskmanager.Config.Activity;
+import com.example.taskmanager.model.Activity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

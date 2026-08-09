@@ -12,17 +12,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 public class DataInitializer {
 
-    @Value("${app.admin.username:admin}")   // from application.properties, default "admin"
+    @Value("${app.admin.username:admin}")
     private String adminUsername;
-
     @Value("${app.admin.password:admin123}")
     private String adminPassword;
 
+    @Value("${app.manager.username:manager}")
+    private String managerUsername;
+    @Value("${app.manager.password:manager123}")
+    private String managerPassword;
+
     @Bean
-    public CommandLineRunner seedAdmin(UserRepository repo, PasswordEncoder encoder) {
+    public CommandLineRunner seedAccounts(UserRepository repo, PasswordEncoder encoder) {
         return args -> {
-            if (!repo.existsByUsername(adminUsername)) {   // only the first time
+            if (!repo.existsByUsername(adminUsername)) {
                 repo.save(new User(adminUsername, encoder.encode(adminPassword), Role.ADMIN));
+            }
+            if (!repo.existsByUsername(managerUsername)) {
+                repo.save(new User(managerUsername, encoder.encode(managerPassword), Role.MANAGER));
             }
         };
     }

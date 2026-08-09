@@ -1,6 +1,5 @@
-package com.example.taskmanager.Config;
+package com.example.taskmanager.model;
 
-import com.example.taskmanager.Config.ActivityType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

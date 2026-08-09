@@ -1,6 +1,6 @@
 package com.example.taskmanager.service;
 
-import com.example.taskmanager.Config.ActivityType;
+import com.example.taskmanager.model.ActivityType;
 import com.example.taskmanager.exception.ProjectNotFoundException;
 import com.example.taskmanager.exception.TaskNotFoundException;
 import com.example.taskmanager.exception.ValidationException;
