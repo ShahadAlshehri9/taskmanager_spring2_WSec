@@ -26,8 +26,8 @@ public class Project {
     private Long id;
     @NotBlank(message="The project title is required !")
     private String title;
-    @ManyToOne(optional = false)      // many projects -> one user leader
-    @JoinColumn(name = "leader_id")   // adds leader_id foreign-key column
+    @ManyToOne(fetch = FetchType.LAZY,optional = true)      // many projects -> one user leader
+    @JoinColumn(name = "leader_id",nullable = true)   // adds leader_id foreign-key column
     private User leader;
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "project_team",

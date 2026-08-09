@@ -44,9 +44,6 @@ public class ProjectService {
                 .orElseThrow(() -> new ProjectNotFoundException(id));
     }
 
-    // ---------------------------------------------------------------------
-    // 1. MANAGER operations
-    // ---------------------------------------------------------------------
 
     /** Create a project. It starts with NO leader; a manager assigns one next. */
     @Transactional
@@ -107,7 +104,7 @@ public class ProjectService {
         User leader = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("No user named " + username));
         if (leader.getRole() != Role.USER) {
-            throw new ValidationException("Only a normal USER can be made a project leader");
+            throw new ValidationException("Only a  USER can be made a project leader");
         }
         project.setLeader(leader);
         project.getTeamMembers().add(leader); // a leader is also on the team
@@ -126,10 +123,6 @@ public class ProjectService {
                 "Revoked the leader of '" + saved.getTitle() + "'");
         return saved;
     }
-
-    // ---------------------------------------------------------------------
-    // 2. LEADER operations (restricted to the caller's own project)
-    // ---------------------------------------------------------------------
 
     @Transactional
     public Project changeStatus(Long id, Status status, String leaderUsername) {
@@ -182,47 +175,44 @@ public class ProjectService {
                 .toList();
     }
 
-    // ---------------------------------------------------------------------
-    // 3. READ helpers
-    // ---------------------------------------------------------------------
 
-    /** Projects the caller LEADS. */
+    // Projects the caller must be a leader
     public List<Project> getAll(String username) {
         return repository.findByLeader(currentUser(username));
     }
 
-    /** Projects the caller is a MEMBER of. */
+    // Projects the caller is a MEMBER of
     @Transactional(readOnly = true)
     public List<Project> getMemberProjects(String username) {
         return repository.findByTeamMembersContains(currentUser(username));
     }
 
-    /** One project the caller LEADS (404 if missing or not theirs). */
+    // One project the caller LEADS (404 if missing or not theirs)
     public Project getById(Long id, String username) {
         return repository.findByIdAndLeader(id, currentUser(username))
                 .orElseThrow(() -> new ProjectNotFoundException(id));
     }
 
-    /** Every project (manager/admin oversight). */
+    //Every project (manager/admin oversight)
     public List<Project> getAllProjects() {
         return repository.findAll();
     }
 
-    /** A project's team members as a safe DTO (manager/admin oversight). */
+    // A project's team members as a safe DTO (manager/admin oversight).
     @Transactional(readOnly = true)
     public List<UserDTO> getTeam(Long projectId) {
         Project project = requireProject(projectId);
         return project.getTeamMembers().stream().map(UserDTO::from).toList();
     }
 
-    /** Any project's tasks (manager/admin oversight). */
+    // Any project's tasks (manager/admin oversight)
     @Transactional(readOnly = true)
     public List<TaskDTO> getTasksOfProject(Long projectId) {
         Project project = requireProject(projectId);
         return taskRepository.findByProject(project).stream().map(TaskDTO::from).toList();
     }
 
-    /** Any project's completion percentage (manager/admin oversight). */
+    // Any project's completion percentage (manager/admin oversight).
     @Transactional(readOnly = true)
     public int progressOfProject(Long projectId) {
         Project project = requireProject(projectId);
@@ -243,7 +233,7 @@ public class ProjectService {
                 .toList();
     }
 
-    /** Search across ALL projects (manager/admin). */
+    // Search across ALL projects (manager/admin)
     public List<Project> searchAll(String keyword) {
         String key = keyword.toLowerCase();
         return repository.findAll().stream()

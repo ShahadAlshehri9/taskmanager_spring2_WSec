@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 // Admin business logic: list and delete accounts. It contains NO task-reading
 // logic - TaskRepository is here only to clean up a deleted user's tasks.
@@ -31,16 +32,16 @@ public class AdminService {
         this.projectRepository = projectRepository;
     }
 
-    /** Every account as a safe DTO (no password). */
+    // Every account as a safe DTO (no password)
     public List<UserDTO> listUsers() {
         return userRepository.findAll().stream()
                 .map(UserDTO::from)
                 .toList();
     }
 
-    /**
-     * Delete an account and everything that references it, in FK-safe order:
-     * team memberships, then owned tasks, then led projects, then the account.
+    /*
+      Delete an account and everything that references it, in FK-safe order:
+      team memberships, then owned tasks, then led projects, then the account.
      */
     @Transactional
     public void deleteUser(Long id) {
@@ -68,6 +69,8 @@ public class AdminService {
         taskRepository.deleteByOwner(user);
         userRepository.delete(user);
     }
+
+
 
     @Transactional
     public UserDTO changeRole(Long id, Role role) {

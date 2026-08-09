@@ -2,6 +2,7 @@ package com.example.taskmanager.dto;
 
 import com.example.taskmanager.model.Role;
 import com.example.taskmanager.model.User;
+import org.hibernate.internal.util.Optional;
 
 // Safe view of a User: id, username, role - never the password hash.
 //A DTO allows you to cherry-pick only the specific field you need for a function or API request,
@@ -14,7 +15,6 @@ import com.example.taskmanager.model.User;
 //Instead of returning raw database entities to the controller, we use this from() method to safely convert data on the fly
 public record UserDTO(Long id, String username, Role role) {
     public static UserDTO from(User user) {
-        return new UserDTO(user.getId(), user.getUsername(), user.getRole());
-    }
+        return new UserDTO(user.getId(), user.getUsername(), user.getRole());}
     //no passwords to view for the admin
 }
