@@ -22,14 +22,16 @@ public final class Authorities {
         switch (role) {
             case ADMIN -> {
                 names.addAll(VIEW_EVERYTHING);
-                names.add("USER_DELETE");     // remove an account
-                names.add("USER_ROLE_SET");   // promote a user to MANAGER or LEADER
+                names.add("USER_DELETE");
+                names.add("USER_ROLE_SET");
             }
             case MANAGER -> {
                 names.addAll(VIEW_EVERYTHING);
                 names.addAll(List.of(
                         "PROJECT_CREATE", "PROJECT_UPDATE", "PROJECT_DELETE",
-                        "LEADER_ASSIGN", "LEADER_REVOKE"));
+                        "LEADER_ASSIGN", "LEADER_REVOKE","PERSONAL_TASK_CREATE", "PERSONAL_TASK_UPDATE", "PERSONAL_TASK_DELETE",
+                        "PROJECT_VIEW_MEMBER", "PROJECT_PROGRESS_VIEW_MEMBER", "PROJECT_TASK_VIEW_ASSIGNED"
+                        ));
             }
             case USER -> names.addAll(List.of(
                     // personal tasks

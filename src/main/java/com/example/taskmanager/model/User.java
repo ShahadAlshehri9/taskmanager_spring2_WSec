@@ -12,7 +12,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)  // so no two accounts share a name
+    @Column(nullable = false, unique = true )  // so no two accounts share a name
     private String username;
 
     @Size(min= 6, message = "Password must be 6 characters at least")

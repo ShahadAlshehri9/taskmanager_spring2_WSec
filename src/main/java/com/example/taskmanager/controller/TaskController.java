@@ -84,10 +84,13 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    // GET /tasks/search?keyword=String  (menu option 5)
+    // GET /tasks/search?keyword=String?filter=String  (menu option 5)
     @GetMapping("/search")
-    public List<Task> search(@RequestParam String keyword, Principal principal) {
-        return service.search(keyword, principal.getName());
+    public List<Task> search(
+            @RequestParam String keyword,
+            @RequestParam(required = false) String filter, // Optional filter parameter
+            Principal principal) {
+        return service.search(keyword, filter, principal.getName());
     }
     //combine all the search function
     // GET /tasks/status/DONE

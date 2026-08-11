@@ -7,11 +7,13 @@ import com.example.taskmanager.model.Status;
 import com.example.taskmanager.model.Task;
 import com.example.taskmanager.service.ProjectService;
 import com.example.taskmanager.service.TaskService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
@@ -49,9 +51,9 @@ public class ProjectController {
         return ProjectDTO.from(projectService.getById(id, principal.getName()));
     }
 
-    // PATCH /projects/5/status?status=DONE -> change status (leader)
+    // PATCH /projects/5/status?status=DONE -> change status
     @PatchMapping("/{id}/status")
-    @PreAuthorize("@projectSecurity.isLeader(#id, authentication.name)")
+    @PreAuthorize("isAuthenticated()")
     public ProjectDTO changeStatus(@PathVariable Long id, @RequestParam Status status, Principal principal) {
         return ProjectDTO.from(projectService.changeStatus(id, status, principal.getName()));
     }
@@ -105,4 +107,21 @@ public class ProjectController {
     public Map<Status, Long> countProjectsByStatus(Principal principal) {
         return projectService.countByStatus(principal.getName());
     }
-  }
+
+    @PutMapping("{projectId}/task/{taskId}/update")
+    @PreAuthorize("isAuthenticated()")
+    public Task LeaderUpdateTask(@PathVariable Long projectId,
+                                 @PathVariable Long taskId,
+                                 @Valid @RequestBody Task task,
+                                 Principal principal){
+        try {
+            projectService.verifyProjectLeader(projectId, principal.getName());
+        } catch (AccessDeniedException e) {
+            throw new RuntimeException(e);
+        }
+        return taskService.updateLeader(taskId, task, principal.getName());
+
+    }
+
+
+}

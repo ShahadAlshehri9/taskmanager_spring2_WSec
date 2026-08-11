@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,7 +39,10 @@ public class ProjectService {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("No user named " + username));
     }
-
+    public void verifyProjectLeader(Long projectId, String username) throws AccessDeniedException {
+        Project project = repository.findByIdAndLeader(projectId, currentUser(username))
+                .orElseThrow(() -> new AccessDeniedException("Access denied: You are not the leader of this project or the project does not exist."));
+    }
     private Project requireProject(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ProjectNotFoundException(id));
@@ -133,6 +137,29 @@ public class ProjectService {
         activityService.record(leaderUsername, ActivityType.PROJECT_STATUS_CHANGED, saved.getId(),
                 "Set project '" + saved.getTitle() + "' to " + status);
         return saved;
+    }
+
+    /** Whenever a task in this project changes, recompute the project's status from its
+     *  task-completion progress: 0% -> TODO, 1-99% -> IN_PROGRESS, 100% -> DONE. A project
+     *  with no tasks stays TODO. */
+    @Transactional
+    public void syncStatusFromProgress(Project project, String actingUsername) {
+        if (project == null) {
+            return;
+        }
+        List<Task> tasks = taskRepository.findByProject(project);
+        int pct = percentDone(tasks);
+        Status newStatus = tasks.isEmpty() ? Status.TODO
+                : pct == 100 ? Status.DONE
+                : pct == 0 ? Status.TODO
+                : Status.IN_PROGRESS;
+        if (project.getStatus() == newStatus) {
+            return;
+        }
+        project.setStatus(newStatus);
+        Project saved = repository.save(project);
+        activityService.record(actingUsername, ActivityType.PROJECT_STATUS_CHANGED, saved.getId(),
+                "Project '" + saved.getTitle() + "' status auto-set to " + newStatus + " (" + pct + "% done)");
     }
 
     @Transactional

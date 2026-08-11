@@ -8,6 +8,7 @@ import com.example.taskmanager.model.*;
 import com.example.taskmanager.repository.ProjectRepository;
 import com.example.taskmanager.repository.TaskRepository;
 import com.example.taskmanager.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -36,12 +37,15 @@ public class TaskService {
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final ActivityService activityService;
+    private final ProjectService projectService;
 
-    public TaskService(TaskRepository repository, UserRepository userRepository, ProjectRepository projectRepository,ActivityService activityService) {
+    public TaskService(TaskRepository repository, UserRepository userRepository, ProjectRepository projectRepository,
+                        ActivityService activityService, ProjectService projectService) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.projectRepository=projectRepository;
         this.activityService = activityService;
+        this.projectService = projectService;
     }
 
     // Helper: turn the logged-in username into the User row that owns the tasks.
@@ -82,6 +86,9 @@ public class TaskService {
         Task saved = repository.save(task);
         activityService.record(username, ActivityType.TASK_STATUS_CHANGED, id,
                 "Marked '" + saved.getTitle() + "' as " + status);
+        if (saved.getProject() != null) {
+            projectService.syncStatusFromProgress(saved.getProject(), username);
+        }
         return saved;
     }
     public List<Task> getAllTasks(String username,String ProjectTitle){
@@ -102,6 +109,9 @@ public class TaskService {
         existing.setDueDate(data.getDueDate());
         Task saved = repository.save(existing);
         activityService.record(username,ActivityType.TASK_UPDATED, saved.getId(),"The"+saved.getTitle()+" Task has been Updated");
+        if (saved.getProject() != null) {
+            projectService.syncStatusFromProgress(saved.getProject(), username);
+        }
         return saved;
     }
 
@@ -111,8 +121,12 @@ public class TaskService {
             throw new TaskNotFoundException(id);
         }
         Optional<Task> task = repository.findByIdAndOwner(id,currentUser(username));
+        Project project = task.get().getProject();
         activityService.record(username,ActivityType.TASK_DELETED, id," the "+ task.get().getTitle() +" has been deleted");
         repository.deleteById(id);
+        if (project != null) {
+            projectService.syncStatusFromProgress(project, username);
+        }
     }
 
     /*An event chain may include dumping some of the values, converting values
@@ -134,12 +148,21 @@ public class TaskService {
                 .toList();
     }
 
-    public List<Task> search(String keyword, String username) {
-        String key = keyword.toLowerCase();
+    public List<Task> search(String keyword, String status, String username) {
+        String key = keyword != null ? keyword.toLowerCase() : "";
+
         return repository.findByOwner(currentUser(username)).stream()
-                .filter(t -> t.getTitle().toLowerCase().contains(key)//avoid case sensitivity
+                .filter(t -> t.getTitle().toLowerCase().contains(key)
                         || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
+                .filter(t -> matchesStatus(t, status))
                 .toList();
+    }
+
+    private boolean matchesStatus(Task task, String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return true;} if (task.getStatus() == null) {
+            return false;}
+        return task.getStatus().name().equalsIgnoreCase(status);
     }
 
     public List<Task> overdue(LocalDate today, String username) {
@@ -187,6 +210,46 @@ public class TaskService {
         Task saved = repository.save(taskRequest);
         activityService.record(leaderUsername,ActivityType.PROJECT_TASK_ASSIGNED, saved.getId() ," the task "+ saved.getTitle() +" has been Assigned to"+ assigneeUsername);
         activityService.record(leaderUsername,ActivityType.PROJECT_TASK_CREATED, saved.getId() ," the task "+ saved.getTitle() +" has been Created");
+        projectService.syncStatusFromProgress(project, leaderUsername);
         return saved;
     }
+    /*    public Task update(Long id, Task data, String username) {
+        Task existing = getById(id, username); // throws TaskNotFoundException (-> 404) if missing or not owned
+        if (data.getTitle() == null || data.getTitle().isBlank()) {
+            throw new ValidationException("Task title must not be empty");
+        }
+        existing.setTitle(data.getTitle());
+        existing.setDescription(data.getDescription());
+        existing.setPriority(data.getPriority());
+        if (data.getStatus() != null) {
+            existing.setStatus(data.getStatus());
+        }
+        existing.setDueDate(data.getDueDate());
+        Task saved = repository.save(existing);
+        activityService.record(username,ActivityType.TASK_UPDATED, saved.getId(),"The"+saved.getTitle()+" Task has been Updated");
+        return saved;
+    }*/
+    //for leader to update a task
+    public Task updateLeader(Long TaskId, Task T, String username ){
+        Task exist = repository.findById(TaskId).orElseThrow(()->new TaskNotFoundException(TaskId));
+        if (T.getTitle() == null || T.getTitle().isBlank()) {
+            throw new ValidationException("Task title must not be empty");
+        }
+        exist.setTitle(T.getTitle());
+        exist.setDescription(T.getDescription());
+        exist.setPriority(T.getPriority());
+        if (T.getStatus() != null) {
+            exist.setStatus(T.getStatus());
+        }
+        exist.setDueDate(T.getDueDate());
+        Task saved = repository.save(exist);
+        activityService.record(username,ActivityType.TASK_UPDATED, saved.getId(),"The"+saved.getTitle()+" Task has been Updated");
+        if (saved.getProject() != null) {
+            projectService.syncStatusFromProgress(saved.getProject(), username);
+        }
+        return saved;
+
+    }
+
+
 }
