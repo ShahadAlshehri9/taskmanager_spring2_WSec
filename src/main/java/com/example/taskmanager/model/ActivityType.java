@@ -6,13 +6,11 @@ public enum ActivityType {
     TASK_UPDATED("TASK"),
     TASK_STATUS_CHANGED("TASK"),
     TASK_DELETED("TASK"),
-
     // project tasks (managed by the leader)
     PROJECT_TASK_CREATED("TASK"),
     PROJECT_TASK_ASSIGNED("TASK"),
     PROJECT_TASK_UPDATED("TASK"),
     PROJECT_TASK_DELETED("TASK"),
-
     // projects
     PROJECT_CREATED("PROJECT"),
     PROJECT_UPDATED("PROJECT"),
@@ -22,7 +20,6 @@ public enum ActivityType {
     MEMBER_REMOVED("PROJECT"),
     LEADER_ASSIGNED("PROJECT"),
     LEADER_REVOKED("PROJECT"),
-
     // admin / users
     USER_DELETED("USER");
     private final String entityType;

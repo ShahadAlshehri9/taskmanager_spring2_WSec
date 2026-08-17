@@ -11,13 +11,14 @@ import java.util.List;
 public record ProjectDTO(
         Long id, String title, String description,
         Status status, LocalDate dueDate, LocalDateTime createdAt,
-        String leader, List<String> teamMembers) {
+        String leader, List<String> teamMembers, int progress) {
 
-    public static ProjectDTO from(Project p) {
+    public static ProjectDTO from(Project p, int progress) {
         return new ProjectDTO(
                 p.getId(), p.getTitle(), p.getDescription(),
                 p.getStatus(), p.getDueDate(), p.getCreatedAt(),
                 p.getLeader() != null ? p.getLeader().getUsername() : null,
-                p.getTeamMembers().stream().map(User::getUsername).toList());
+                p.getTeamMembers().stream().map(User::getUsername).toList(),
+                progress);
     }
 }

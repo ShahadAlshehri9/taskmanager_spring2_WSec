@@ -13,10 +13,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.Comparator;//lets you sort the same objects in multiple, different ways without changing the original class code.
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /* Business logic. Depends on the Repository interface, not the concrete
@@ -77,8 +74,10 @@ public class TaskService {
     }
 
     public List<Task> getAll(String username) {
-        return repository.findByOwner(currentUser(username));   // was findAll()
+        return repository.findByOwner(currentUser(username)).stream().toList();
+
     }
+
 
     public Task changeStatus(Long id, Status status, String username) {
         Task task = getById(id, username);   // owner-checked
@@ -142,28 +141,103 @@ public class TaskService {
     /*t-> t.getStatus() lambda expression
     is shorthand provided by Java for anonymous methods that do not have an "owner", i.e., they are not part of a class or an interface.
         The function contains both the parameter definition and the function body.*/
-    public List<Task> byPriority(Priority priority, String username) {
-        return repository.findByOwner(currentUser(username)).stream()//The method is called on collection that implements the Collection interface, such as an ArrayList Object.
-                .filter(t -> t.getPriority() == priority)//The elements that do not satisfy the filter condition are removed from the string
-                .toList();
+
+    public List<Task> search(String keyword, String status, String username, String typeSort, String priority,Long Pid) {
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasStatus  = status  != null && !status.trim().isEmpty();
+        boolean hasSort    = typeSort != null && !typeSort.trim().isEmpty();
+        boolean hasPriority = priority != null && !priority.trim().isEmpty();
+        boolean hasPid = Pid != null;
+
+        List<Task> tasks = repository.findByOwner(currentUser(username));
+
+        // Apply filters only if a keyword, status, priority, or project id was provided
+        if (hasKeyword || hasStatus || hasPriority || hasPid) {
+            String key = hasKeyword ? keyword.toLowerCase() : "";
+            tasks = tasks.stream()
+                    .filter(t -> !hasKeyword
+                            || t.getTitle().toLowerCase().contains(key)
+                            || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
+                    .filter(t -> !hasPid
+                            || (t.getProject() != null && Objects.equals(t.getProject().getId(), Pid)))
+                    .filter(t -> matchesStatus(t, status)).filter(t -> byPriority(t, priority))
+                    .toList();
+        }
+
+        // Apply sorting if requested
+        if (hasSort) {
+            Comparator<Task> comparator = comparatorFor(typeSort);
+            if (comparator != null) {
+                tasks = tasks.stream().sorted(comparator).toList();
+            }
+        }
+
+        return tasks;
+    }
+    public List<Task> searchLeader(String keyword, String status, String username, String typeSort, String priority,Long Pid) {
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasStatus  = status  != null && !status.trim().isEmpty();
+        boolean hasSort    = typeSort != null && !typeSort.trim().isEmpty();
+        boolean hasPriority = priority != null && !priority.trim().isEmpty();
+
+        List<Task> tasks = repository.findByProject(projectRepository.findById(Pid).orElseThrow(()->new ProjectNotFoundException(Pid)));
+
+        // Apply filters only if a keyword, status, priority, or project id was provided
+        if (hasKeyword || hasStatus || hasPriority ) {
+            String key = hasKeyword ? keyword.toLowerCase() : "";
+            tasks = tasks.stream()
+                    .filter(t -> !hasKeyword
+                            || t.getTitle().toLowerCase().contains(key)
+                            || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
+                    .filter(t -> matchesStatus(t, status)).filter(t -> byPriority(t, priority))
+                    .toList();
+        }
+
+        // Apply sorting if requested
+        if (hasSort) {
+            Comparator<Task> comparator = comparatorFor(typeSort);
+            if (comparator != null) {
+                tasks = tasks.stream().sorted(comparator).toList();
+            }
+        }
+
+        return tasks;
     }
 
-    public List<Task> search(String keyword, String status, String username) {
-        String key = keyword != null ? keyword.toLowerCase() : "";
 
-        return repository.findByOwner(currentUser(username)).stream()
-                .filter(t -> t.getTitle().toLowerCase().contains(key)
-                        || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
-                .filter(t -> matchesStatus(t, status))
-                .toList();
+    private Comparator<Task> comparatorFor(String typeSort) {
+        return switch (typeSort.trim().toLowerCase()) {
+            case  "title_asc" ->
+                    Comparator.comparing(Task::getTitle, String.CASE_INSENSITIVE_ORDER);
+            case "title_desc" ->
+                    Comparator.comparing(Task::getTitle, String.CASE_INSENSITIVE_ORDER).reversed();
+            case  "created_asc" ->
+                    Comparator.comparing(Task::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
+            case "created_desc" ->
+                    Comparator.comparing(Task::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed();
+            default -> null; // unknown sort type -> no sorting
+        };
     }
 
     private boolean matchesStatus(Task task, String status) {
         if (status == null || status.trim().isEmpty()) {
-            return true;} if (task.getStatus() == null) {
-            return false;}
+            return true;
+        }
+        if (task.getStatus() == null) {
+            return false;
+        }
         return task.getStatus().name().equalsIgnoreCase(status);
     }
+    public boolean byPriority(Task task,String priority ){
+        if (priority == null || priority.trim().isEmpty()) {
+            return true;
+        }
+        if (task.getPriority() == null) {
+            return false;
+        }
+        return task.getPriority().name().equalsIgnoreCase(priority);
+    }
+
 
     public List<Task> overdue(LocalDate today, String username) {
         return repository.findByOwner(currentUser(username)).stream()
@@ -172,11 +246,7 @@ public class TaskService {
                 .toList();
     }
 
-    public List<Task> sortedByPriority(String username) {
-        return repository.findByOwner(currentUser(username)).stream()
-                .sorted(Comparator.comparingInt((Task t) -> t.getPriority().weight()).reversed())
-                .toList();
-    }
+
 
     public Map<Status, Long> countByStatus(String username) {
         return repository.findByOwner(currentUser(username)).stream()

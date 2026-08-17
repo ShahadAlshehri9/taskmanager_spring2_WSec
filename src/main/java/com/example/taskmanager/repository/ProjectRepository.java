@@ -10,7 +10,8 @@ import java.util.Optional;
 public interface ProjectRepository extends JpaRepository<Project, Long> {
     List<Project> findByLeader(User Leader);
     Optional<Project> findByIdAndLeader(Long id, User Leader);
-
     Optional<Project> findByIdAndTeamMembers_Username(Long id, String username);
     List<Project> findByTeamMembersContains(User user);
+    List<Project> findByLeaderOrTeamMembersContaining(User leader, User member);
+
 }

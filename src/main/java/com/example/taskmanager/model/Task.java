@@ -29,6 +29,7 @@ public class Task {
     // @NotBlank rejects null/empty/whitespace-only titles before saving.
     @NotBlank(message = "Task title must not be empty")//validations
     private String title;
+    
     private String description;
     // @Enumerated(STRING) stores the enum by its name ("HIGH") instead of a
     // number, so the column stays readable in the database.

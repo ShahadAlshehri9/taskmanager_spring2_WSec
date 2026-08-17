@@ -41,21 +41,22 @@ public class DashboardService {
     }
     public int projectProgress(Long projectId, String requester) {
         User u = currentUser(requester);
-
         Optional<Project> projectOpt = projectRepository.findByIdAndLeader(projectId, u);
-
         if (projectOpt.isEmpty()) {
             projectOpt = projectRepository.findByIdAndTeamMembers_Username(projectId, u.getUsername());
         }
-
         Project project = projectOpt.orElseThrow(() ->
                 new ValidationException("Project not found or user does not have access."));
 
         List<Task> tasks = taskRepository.findByProject(project);
-
         return progressPercent(tasks);
     }
-
+    public int projectProgressA(Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ValidationException("Project not found."));
+        List<Task> tasks = taskRepository.findByProject(project);
+        return progressPercent(tasks);
+    }
     public int myProgress(String username) {
         return progressPercent(taskRepository.findByOwner(currentUser(username)));
     }

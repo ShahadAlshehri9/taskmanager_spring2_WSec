@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -45,12 +46,15 @@ public class TaskController {
         return service.getAll(principal.getName()).stream().map(TaskDTO::from).toList();
     }
 
+
     // GET /tasks/5  -> one task by id. {id} in the URL becomes the method
     // parameter via @PathVariable Extracts values from the URL path and binds them to method parameters.
     @GetMapping("/{id}")//Retrieves data from the server # needs info for specification
     public Task getById(@PathVariable Long id, Principal principal) {
         return service.getById(id, principal.getName());
     }
+
+
 
     // POST /tasks  -> create a task     (menu option 2)
     // @RequestBody turns the incoming JSON into a Task object Binds the HTTP request body to a Java object. Commonly used with POST and PUT requests.
@@ -87,12 +91,19 @@ public class TaskController {
     // GET /tasks/search?keyword=String?filter=String  (menu option 5)
     @GetMapping("/search")
     public List<Task> search(
-            @RequestParam String keyword,
-            @RequestParam(required = false) String filter, // Optional filter parameter
-            Principal principal) {
-        return service.search(keyword, filter, principal.getName());
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String filter,// Optional filter parameter
+            Principal principal,@RequestParam(required = false) String sort,@RequestParam(required = false) String priority,@RequestParam( required = false) Long projectId) {
+        return service.search(keyword, filter, principal.getName(),sort, priority,projectId);
     }
-    //combine all the search function
+    @GetMapping("/leader/search/{Pid}")
+    public List<Task> searchLeader(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String filter,// Optional filter parameter
+            Principal principal,@RequestParam(required = false) String sort,@RequestParam(required = false) String priority,@PathVariable("Pid")  Long Pid) {
+        return service.searchLeader(keyword, filter, principal.getName(), sort, priority, Pid);
+    }
+        //combine all the search function
     // GET /tasks/status/DONE
     @GetMapping("/status/{status}")
     public List<Task> byStatus(@PathVariable Status status, Principal principal) {
@@ -110,4 +121,5 @@ public class TaskController {
     public Map<Status, Long> stats(Principal principal) {
         return service.countByStatus(principal.getName());
     }
+
 }

@@ -43,8 +43,9 @@ public class RegisterController {
         }
         //  Hashing password, then save -> the one place plain text is turned into a hash
         String hashed = passwordEncoder.encode(request.getPassword());
-        userRepository.save(new User(request.getUsername(), hashed, Role.USER));
-        String token = jwtUtil.generateToken(request);
+        User user = userRepository.save(new User(request.getUsername(), hashed, Role.USER));
+
+        String token = jwtUtil.generateToken(user);
         return ResponseEntity.status(HttpStatus.CREATED)//do i need this for the front end?
                 .body(Map.of(
                         "message", "Account created",

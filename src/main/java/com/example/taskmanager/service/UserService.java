@@ -1,12 +1,15 @@
 package com.example.taskmanager.service;
 
 import com.example.taskmanager.dto.UserDTO;
+import com.example.taskmanager.dto.UserTaskDTO;
 import com.example.taskmanager.exception.GlobalExceptionHandler;
 import com.example.taskmanager.exception.ValidationException;
 import com.example.taskmanager.model.User;
 import com.example.taskmanager.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -15,6 +18,13 @@ public class UserService {
     public UserService(UserRepository repository) {
         this.repository = repository;
     }
+    public List<UserTaskDTO> getAllUsers() {
+        return repository.findAll()
+                .stream()
+                .map(UserTaskDTO::from)
+                .toList();
+    }
+
     @Transactional
     public UserDTO updateUsername(String username, String newUsername) {
         // 1. Fetch the user by their Primary Key (ID)

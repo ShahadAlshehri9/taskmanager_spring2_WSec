@@ -41,7 +41,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {//validation of username  and also check authentication If a valid username is obtained and no authentication exists yet
                 UserDetails user = userDetailsService.loadUserByUsername(username);//Load the full user details
                 SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));//empty list no authorities been specified
+                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
                 /*A UsernamePasswordAuthenticationToken is created with The UserDetails object as the principal.
                 null credentials (since we rely on the token, not a password).
                 The user’s authorities (retrieved from user.getAuthorities()).*/

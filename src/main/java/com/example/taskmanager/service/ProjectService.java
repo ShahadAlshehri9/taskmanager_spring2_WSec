@@ -139,9 +139,7 @@ public class ProjectService {
         return saved;
     }
 
-    /** Whenever a task in this project changes, recompute the project's status from its
-     *  task-completion progress: 0% -> TODO, 1-99% -> IN_PROGRESS, 100% -> DONE. A project
-     *  with no tasks stays TODO. */
+
     @Transactional
     public void syncStatusFromProgress(Project project, String actingUsername) {
         if (project == null) {
@@ -219,7 +217,12 @@ public class ProjectService {
         return repository.findByIdAndLeader(id, currentUser(username))
                 .orElseThrow(() -> new ProjectNotFoundException(id));
     }
-
+    public Project getProjectByIdForMember(Long projectId, String username) {
+        return repository
+                .findByIdAndTeamMembers_Username(projectId, username)
+                .orElseThrow(() ->
+                        new RuntimeException("Project not found or user is not a member"));
+    }
     //Every project (manager/admin oversight)
     public List<Project> getAllProjects() {
         return repository.findAll();
@@ -252,12 +255,82 @@ public class ProjectService {
         return (int) Math.round(done * 100.0 / tasks.size());
     }
 
-    public List<Project> search(String keyword, String username) {
-        String key = keyword.toLowerCase();
-        return repository.findByLeader(currentUser(username)).stream()
-                .filter(p -> p.getTitle().toLowerCase().contains(key)
-                        || (p.getDescription() != null && p.getDescription().toLowerCase().contains(key)))
-                .toList();
+    // A project's task counts by status (leader, member, manager, admin).
+    @Transactional(readOnly = true)
+    public Map<Status, Long> taskStatusCountsForProject(Long projectId) {
+        Project project = requireProject(projectId);
+        Map<Status, Long> counts = new EnumMap<>(Status.class);
+        for (Status status : Status.values()) {
+            counts.put(status, 0L);
+        }
+        counts.putAll(taskRepository.findByProject(project).stream()
+                .collect(Collectors.groupingBy(Task::getStatus, Collectors.counting())));
+        return counts;
+    }
+    @Transactional(readOnly = true)
+    public Map<Priority, Long> taskPriorityCountsForProject(Long projectId) {
+        Project project = requireProject(projectId);
+        Map<Priority, Long> counts = new EnumMap<>(Priority.class);
+        for (Priority priority : Priority.values()) {
+            counts.put(priority, 0L);
+        }
+        counts.putAll(taskRepository.findByProject(project).stream()
+                .collect(Collectors.groupingBy(Task::getPriority, Collectors.counting())));
+        return counts;
+    }
+    public List<Project> search(String keyword, String status, String username, String typeSort) {
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+        boolean hasStatus  = status  != null && !status.trim().isEmpty();
+        boolean hasSort    = typeSort != null && !typeSort.trim().isEmpty();
+
+        User user = currentUser(username);
+        List<Project> Projects = (user.getRole() == Role.MANAGER || user.getRole() == Role.ADMIN)
+                ? repository.findAll()
+                : repository.findByLeaderOrTeamMembersContaining(user, user);
+        // Apply filters only if a keyword or status was provided
+        if (hasKeyword || hasStatus  ) {
+            String key = hasKeyword ? keyword.toLowerCase() : "";
+            Projects = Projects.stream()
+                    .filter(t -> !hasKeyword
+                            || t.getTitle().toLowerCase().contains(key)
+                            || (t.getDescription() != null && t.getDescription().toLowerCase().contains(key)))
+                    .filter(t -> matchesStatus(t, status))
+                    .toList();
+        }
+
+        // Apply sorting if requested
+        if (hasSort) {
+            Comparator<Project> comparator = comparatorFor(typeSort);
+            if (comparator != null) {
+                Projects = Projects.stream().sorted(comparator).toList();
+            }
+        }
+
+        return Projects;
+    }
+
+    private Comparator<Project> comparatorFor(String typeSort) {
+        return switch (typeSort.trim().toLowerCase()) {
+            case  "title_asc" ->
+                    Comparator.comparing(Project::getTitle, String.CASE_INSENSITIVE_ORDER);
+            case "title_desc" ->
+                    Comparator.comparing(Project::getTitle, String.CASE_INSENSITIVE_ORDER).reversed();
+            case  "created_asc" ->
+                    Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
+            case "created_desc" ->
+                    Comparator.comparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed();
+            default -> null; // unknown sort type -> no sorting
+        };
+    }
+
+    private boolean matchesStatus(Project project, String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return true;
+        }
+        if (project.getStatus() == null) {
+            return false;
+        }
+        return project.getStatus().name().equalsIgnoreCase(status);
     }
 
     // Search across ALL projects (manager/admin)
