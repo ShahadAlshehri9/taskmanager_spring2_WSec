@@ -176,6 +176,12 @@ public class ProjectController {
         return projectService.countByStatus(principal.getName());
     }
 
+    @GetMapping("/members/progress/{Pid}")
+    @PreAuthorize("isAuthenticated()")
+    public Map<String,Double>  members_progress(@PathVariable Long Pid,Principal principal){
+        return projectService.getMembersProgress(Pid, principal.getName());
+    }
+
     @PutMapping("{projectId}/task/{taskId}/update")
     @PreAuthorize("isAuthenticated()")
     public Task LeaderUpdateTask(@PathVariable Long projectId,

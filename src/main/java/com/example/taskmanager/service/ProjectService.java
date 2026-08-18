@@ -254,6 +254,53 @@ public class ProjectService {
         long done = tasks.stream().filter(t -> t.getStatus() == Status.DONE).count();
         return (int) Math.round(done * 100.0 / tasks.size());
     }
+    @Transactional(readOnly = true)
+    public Map<String, Double> getMembersProgress(Long projectId, String currentUser) {
+      User user = currentUser(currentUser);
+        // 1. Find the project, making sure the caller is the leader OR a member
+        Project project = null;
+        try {
+            project = repository.findByIdAndLeader(projectId, user)
+                    .or(() -> repository.findByIdAndTeamMembers_Username(
+                            projectId, user.getUsername())).orElseThrow(() -> new AccessDeniedException(
+                            "Project not found or you don't have access to it"));
+        } catch (AccessDeniedException e) {
+            throw new RuntimeException(e);
+        }
+
+        List<Task> projectTasks = taskRepository.findByProject(project);
+
+        Map<String, List<Task>> tasksByOwner = projectTasks.stream()
+                .filter(t -> t.getOwner() != null)
+                .collect(Collectors.groupingBy(t -> t.getOwner().getUsername()));
+
+        Map<String, Double> progress = new HashMap<>();
+        for (User member : project.getTeamMembers()) {
+            String username = member.getUsername();
+            List<Task> owned = tasksByOwner.getOrDefault(username, List.of());
+
+            long total = owned.size();
+            long done  = owned.stream().filter(this::isDone).count();
+
+            double pct = (total == 0) ? 0.0 : (done * 100.0) / total;
+            progress.put(username, round(pct));
+        }
+        User leader = project.getLeader();
+        List<Task> leaderTasks = tasksByOwner.getOrDefault(leader.getUsername(), List.of());
+        long total = leaderTasks.size();
+        long done  = leaderTasks.stream().filter(this::isDone).count();
+        progress.put(leader.getUsername(), round(total == 0 ? 0.0 : (done * 100.0) / total));
+
+        return progress;
+    }
+
+    private boolean isDone(Task task) {
+        return task.getStatus() == Status.DONE;   // 👈 adjust to your model
+    }
+
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;     // 2 decimal places
+    }
 
     // A project's task counts by status (leader, member, manager, admin).
     @Transactional(readOnly = true)

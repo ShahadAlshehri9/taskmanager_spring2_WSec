@@ -2,10 +2,7 @@ package com.example.taskmanager.service;
 
 import com.example.taskmanager.exception.ProjectNotFoundException;
 import com.example.taskmanager.exception.ValidationException;
-import com.example.taskmanager.model.Project;
-import com.example.taskmanager.model.Status;
-import com.example.taskmanager.model.Task;
-import com.example.taskmanager.model.User;
+import com.example.taskmanager.model.*;
 import com.example.taskmanager.repository.ProjectRepository;
 import com.example.taskmanager.repository.TaskRepository;
 import com.example.taskmanager.repository.UserRepository;
@@ -41,12 +38,18 @@ public class DashboardService {
     }
     public int projectProgress(Long projectId, String requester) {
         User u = currentUser(requester);
-        Optional<Project> projectOpt = projectRepository.findByIdAndLeader(projectId, u);
-        if (projectOpt.isEmpty()) {
-            projectOpt = projectRepository.findByIdAndTeamMembers_Username(projectId, u.getUsername());
+
+        boolean privileged = u.getRole() == Role.MANAGER || u.getRole() == Role.ADMIN;
+
+        Project project;
+        if (privileged) {
+            project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new ValidationException("Project not found."));
+        } else {
+            project = projectRepository.findByIdAndLeader(projectId, u)
+                    .or(() -> projectRepository.findByIdAndTeamMembers_Username(projectId, u.getUsername()))
+                    .orElseThrow(() -> new ValidationException("Project not found or user does not have access."));
         }
-        Project project = projectOpt.orElseThrow(() ->
-                new ValidationException("Project not found or user does not have access."));
 
         List<Task> tasks = taskRepository.findByProject(project);
         return progressPercent(tasks);
