@@ -178,7 +178,7 @@ public class ProjectController {
 
     @GetMapping("/members/progress/{Pid}")
     @PreAuthorize("isAuthenticated()")
-    public Map<String,Double>  members_progress(@PathVariable Long Pid,Principal principal){
+    public Map<String,Integer>  members_progress(@PathVariable Long Pid,Principal principal){
         return projectService.getMembersProgress(Pid, principal.getName());
     }
 
